@@ -224,6 +224,9 @@ impl NfsReadFileSystem for LocalFs {
         if meta.is_dir() {
             return Err(nfsstat3::NFS3ERR_ISDIR);
         }
+        if !meta.is_file() {
+            return Err(nfsstat3::NFS3ERR_INVAL);
+        }
         let len = meta.len();
         if offset >= len {
             return Ok((Vec::new(), true));
@@ -615,7 +618,7 @@ impl LocalFs {
     /// `None` for anything else (or a video when `ffmpeg` isn't installed).
     pub fn thumbnail(&self, path: &str, label: &str) -> Option<Arc<Vec<u8>>> {
         let file = self.resolve_phone_path(path, label)?;
-        let meta = std::fs::metadata(&file).ok()?;
+        let meta = std::fs::symlink_metadata(&file).ok()?;
         if !meta.is_file() {
             return None;
         }
@@ -867,5 +870,22 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn symlinks_are_not_read_or_thumbnailed() {
+        let dir = tempdir();
+        let outside = tempdir();
+        let secret = outside.join("secret.png");
+        image::RgbImage::from_pixel(64, 64, image::Rgb([10, 20, 30])).save(&secret).unwrap();
+        std::os::unix::fs::symlink(&secret, dir.join("escape.png")).unwrap();
+
+        let fs = LocalFs::new(dir.clone()).unwrap();
+        let link = fs.lookup(&fs.root_dir(), &fname("escape.png")).await.unwrap();
+        assert_eq!(fs.read(&link, 0, 1024).await.unwrap_err(), nfsstat3::NFS3ERR_INVAL);
+        assert!(fs.thumbnail("/escape.png", "/share").is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&outside);
     }
 }

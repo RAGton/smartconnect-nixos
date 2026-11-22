@@ -385,6 +385,13 @@ async fn handle(daemon: Arc<Daemon>, acceptor: TlsAcceptor, tcp: TcpStream, peer
     let mut tls = tls;
     let head = timeout(FIRST_MESSAGE_TIMEOUT, crate::fex_host::read_head(&mut tls)).await.context("no HTTP request")??;
     if let Some(target) = crate::fex_host::target(&head).filter(|t| crate::fex_host::is_fex(t)).map(str::to_owned) {
+        if !daemon.is_connected()
+            || !daemon.clipboard.fex().has_offers()
+            || daemon.phone_ip() != Some(peer.ip().to_canonical())
+        {
+            warn!(%peer, "fex: rejecting request from non-session peer or with no active offer");
+            return Ok(());
+        }
         info!(%peer, "fex request");
         return crate::fex_host::serve(daemon.clipboard.fex(), crate::fex_host::Prefixed::new(head, tls), &target, peer).await;
     }

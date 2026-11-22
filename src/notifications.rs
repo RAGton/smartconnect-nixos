@@ -531,12 +531,23 @@ fn find_icon_file(name: &str) -> Option<String> {
         return None;
     }
     let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(data_home) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).filter(|p| p.is_absolute()) {
+        roots.push(data_home.join("icons/hicolor"));
+        roots.push(data_home.join("icons"));
+    }
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
         roots.push(home.join(".local/share/icons/hicolor"));
         roots.push(home.join(".local/share/icons"));
     }
-    for theme in ["Papirus", "hicolor", "breeze", "Adwaita"] {
-        roots.push(PathBuf::from("/usr/share/icons").join(theme));
+    let data_dirs: Vec<PathBuf> = std::env::var_os("XDG_DATA_DIRS")
+        .map(|v| std::env::split_paths(&v).filter(|p| p.is_absolute()).collect())
+        .filter(|v: &Vec<PathBuf>| !v.is_empty())
+        .unwrap_or_else(|| vec![PathBuf::from("/usr/share")]);
+    for dir in data_dirs {
+        let icons = dir.join("icons");
+        for theme in ["Papirus", "hicolor", "breeze", "Adwaita"] {
+            roots.push(icons.join(theme));
+        }
     }
     let sizes = ["scalable", "48x48", "64x64", "128x128", "256x256"];
     for root in &roots {

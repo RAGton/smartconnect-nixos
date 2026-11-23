@@ -263,7 +263,7 @@ pub fn advertise(id: &Identity, port: u16) -> Result<Child> {
 /// and dials any paired phone that isn't connected, so it reconnects without a QR.
 pub async fn watch_phones(daemon: Arc<Daemon>) -> Result<()> {
     let mut child = Command::new("avahi-browse")
-        .args(["-r", "-p", "-k", SERVICE_TYPE])
+        .args(["-r", "-p", SERVICE_TYPE])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .kill_on_drop(true)

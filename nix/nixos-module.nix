@@ -120,7 +120,21 @@ in
     services.avahi = {
       enable = lib.mkDefault true;
       openFirewall = lib.mkDefault true;
+
+      # O NixOS desabilita publicação por padrão (disable-publishing=yes e
+      # disable-user-service-publishing=yes). Sem isso o avahi-publish falha
+      # com "Failed to create entry group: Not permitted" e o celular não
+      # enxerga o PC pelo botão Connect.
+      settings.publish = {
+        "disable-publishing" = false;
+        "disable-user-service-publishing" = false;
+      };
     };
+
+    # A policy D-Bus do avahi (avahi-dbus.conf) referencia o grupo "netdev";
+    # o dbus-broker descarta o arquivo inteiro se o grupo não existir, e o
+    # cliente avahi perde permissão de falar com o daemon.
+    users.groups.netdev = lib.mkDefault { };
 
     # Firewall rules
     networking.firewall =
